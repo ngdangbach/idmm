@@ -151,6 +151,12 @@ body {
   background: var(--border-subtle);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 /* ----------------- BUTTONS ----------------- */
 .btn {
   display: inline-flex;

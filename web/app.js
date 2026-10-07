@@ -354,17 +354,26 @@ btnPasteUrl.onclick = async () => {
   } catch (e) {}
 };
 
+// Torrent File Selection & Header Button
+const btnOpenTorrentHeader = document.getElementById('btnOpenTorrentHeader');
 const btnSelectTorrent = document.getElementById('btnSelectTorrent');
 const inputTorrentFile = document.getElementById('inputTorrentFile');
 
+if (btnOpenTorrentHeader && inputTorrentFile) {
+  btnOpenTorrentHeader.onclick = () => inputTorrentFile.click();
+}
+
 if (btnSelectTorrent && inputTorrentFile) {
   btnSelectTorrent.onclick = () => inputTorrentFile.click();
+}
+
+if (inputTorrentFile) {
   inputTorrentFile.onchange = async () => {
     if (!inputTorrentFile.files.length) return;
     const file = inputTorrentFile.files[0];
     const formData = new FormData();
     formData.append('torrent', file);
-    const saveDir = document.getElementById('inputSaveDir').value.trim();
+    const saveDir = document.getElementById('inputSaveDir') ? document.getElementById('inputSaveDir').value.trim() : '';
     if (saveDir) formData.append('target_path', saveDir);
 
     try {
@@ -373,8 +382,8 @@ if (btnSelectTorrent && inputTorrentFile) {
         body: formData
       });
       if (res.ok) {
-        newTaskModal.classList.remove('open');
-        newTaskForm.reset();
+        if (newTaskModal) newTaskModal.classList.remove('open');
+        if (newTaskForm) newTaskForm.reset();
         inputTorrentFile.value = '';
         fetchTasks();
       } else {
