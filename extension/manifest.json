@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "IDMM — Next-Gen Download Accelerator",
+  "version": "1.0.0",
+  "description": "Turbocharges downloads with IDMM multi-threaded engine and video sniffer.",
+  "permissions": [
+    "downloads",
+    "nativeMessaging",
+    "storage",
+    "contextMenus",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://127.0.0.1:8989/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "IDMM Downloader",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

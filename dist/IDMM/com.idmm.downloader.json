@@ -1,0 +1,9 @@
+{
+  "allowed_origins": [
+    "chrome-extension://*"
+  ],
+  "description": "IDMM Next-Gen Download Accelerator Native Host",
+  "name": "com.idmm.downloader",
+  "path": "D:\\Personal\\idmm\\dist\\IDMM\\idmm-host.exe",
+  "type": "stdio"
+}

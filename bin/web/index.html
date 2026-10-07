@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IDMM — Next-Gen Download Accelerator & Media Streamer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+  <!-- Top Navigation / Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-container">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.2" fill="none">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-title">IDMM</span>
+          <span class="logo-badge">PRO</span>
+        </div>
+      </div>
+      <span class="tagline">Next-Gen Multi-Threaded Engine</span>
+    </div>
+
+    <!-- Global Stats Counter -->
+    <div class="header-stats">
+      <div class="stat-item">
+        <span class="stat-label">TOTAL SPEED</span>
+        <span class="stat-value speed-value" id="globalSpeed">0.00 MB/s</span>
+      </div>
+      <div class="stat-separator"></div>
+      <div class="stat-item">
+        <span class="stat-label">ACTIVE CONNS</span>
+        <span class="stat-value" id="globalConns">0</span>
+      </div>
+      <div class="stat-separator"></div>
+      <div class="stat-item">
+        <span class="stat-label">TASKS</span>
+        <span class="stat-value" id="taskCount">0 Active</span>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="header-actions">
+      <button class="btn btn-primary" id="btnOpenNewTask">
+        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>Add Download</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="nav-section">
+        <div class="nav-title">CATEGORIES</div>
+        <button class="nav-item active" data-filter="all">
+          <span class="nav-icon">📦</span>
+          <span class="nav-text">All Downloads</span>
+          <span class="nav-badge" id="countAll">0</span>
+        </button>
+        <button class="nav-item" data-filter="active">
+          <span class="nav-icon">⚡</span>
+          <span class="nav-text">Downloading</span>
+          <span class="nav-badge" id="countActive">0</span>
+        </button>
+        <button class="nav-item" data-filter="completed">
+          <span class="nav-icon">✅</span>
+          <span class="nav-text">Completed</span>
+          <span class="nav-badge" id="countCompleted">0</span>
+        </button>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-title">MEDIA TYPES</div>
+        <button class="nav-item" data-filter="video">
+          <span class="nav-icon">🎬</span>
+          <span class="nav-text">Videos & HLS</span>
+        </button>
+        <button class="nav-item" data-filter="archive">
+          <span class="nav-icon">🗜️</span>
+          <span class="nav-text">Compressed & ISO</span>
+        </button>
+        <button class="nav-item" data-filter="document">
+          <span class="nav-icon">📄</span>
+          <span class="nav-text">Documents</span>
+        </button>
+      </div>
+
+      <!-- Live Speed Sparkline Card -->
+      <div class="speed-card">
+        <div class="speed-card-header">
+          <span>THROUGHPUT GRAPH</span>
+          <span class="live-dot"></span>
+        </div>
+        <canvas id="speedChart" width="220" height="70"></canvas>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <section class="content-area">
+      <!-- Toolbar -->
+      <div class="content-toolbar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Search tasks by name or URL...">
+        </div>
+
+        <div class="toolbar-controls">
+          <button class="btn btn-secondary" id="btnResumeAll" title="Resume All">▶ Resume All</button>
+          <button class="btn btn-secondary" id="btnPauseAll" title="Pause All">⏸ Pause All</button>
+        </div>
+      </div>
+
+      <!-- Task Cards Container -->
+      <div class="task-list" id="taskListContainer">
+        <!-- Rendered dynamically -->
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">⚡</div>
+          <h3>No Active Downloads</h3>
+          <p>Click "Add Download" above or paste a download link to experience lightning fast multi-threaded speeds!</p>
+          <button class="btn btn-primary" onclick="document.getElementById('btnOpenNewTask').click()">+ New Download</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- New Task Modal -->
+  <div class="modal-backdrop" id="newTaskModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="modal-icon">🚀</span>
+          <h3>Add New Download Task</h3>
+        </div>
+        <button class="modal-close" id="btnCloseModal">&times;</button>
+      </div>
+      <form id="newTaskForm">
+        <div class="form-group">
+          <label for="inputUrl">Download URL (HTTP / HTTPS / M3U8):</label>
+          <div class="input-with-button">
+            <input type="url" id="inputUrl" required placeholder="https://example.com/large-video.mp4" autofocus>
+            <button type="button" class="btn btn-secondary" id="btnPasteUrl">📋 Paste</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="inputConnections">Threads / Connections:</label>
+            <div class="range-container">
+              <input type="range" id="inputConnections" min="1" max="32" value="16">
+              <span class="range-val" id="valConnections">16</span>
+            </div>
+          </div>
+          <div class="form-group flex-1">
+            <label for="inputSpeedLimit">Speed Limit (0 = Unlimited):</label>
+            <div class="input-unit">
+              <input type="number" id="inputSpeedLimit" min="0" value="0" placeholder="0">
+              <span class="unit-text">KB/s</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="inputSaveDir">Save To (Optional custom directory/name):</label>
+          <input type="text" id="inputSaveDir" placeholder="Default: Downloads folder">
+        </div>
+
+        <div class="form-group">
+          <label for="inputSchedule">⏰ Schedule Download (Optional - Leave blank to start now):</label>
+          <input type="datetime-local" id="inputSchedule">
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-glow">🚀 Start Accelerating</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- In-App Stream Video Player Modal -->
+  <div class="modal-backdrop" id="videoPlayerModal">
+    <div class="modal-dialog modal-video">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="modal-icon">🎬</span>
+          <h3 id="playerVideoTitle">Stream-as-you-Download Preview</h3>
+        </div>
+        <button class="modal-close" id="btnClosePlayer">&times;</button>
+      </div>
+      <div class="video-container">
+        <video id="html5Player" controls autoplay preload="metadata">
+          Your browser does not support HTML5 video streaming.
+        </video>
+      </div>
+      <div class="player-footer">
+        <div class="stream-info">
+          <span class="badge badge-live">LIVE LOCAL PROXY</span>
+          <span id="playerStreamUrl" class="stream-url-text"></span>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="btnCopyStreamUrl">📋 Copy Stream URL</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
