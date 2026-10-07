@@ -18,6 +18,7 @@ import (
 	"idmm/internal/engine"
 	"idmm/internal/media"
 	"idmm/internal/scheduler"
+	"idmm/internal/torrent"
 )
 
 // TaskEntry wraps an active download task with its metadata.
@@ -42,14 +43,15 @@ type TaskEntry struct {
 
 // Server provides REST APIs, SSE, Stream Proxy, and Desktop Web UI.
 type Server struct {
-	mu           sync.RWMutex
-	tasks        map[string]*TaskEntry
-	streamServer *media.StreamServer
-	scheduler    *scheduler.Scheduler
-	port         int
-	httpServer   *http.Server
-	webDir       string
-	nextID       int
+	mu            sync.RWMutex
+	tasks         map[string]*TaskEntry
+	streamServer  *media.StreamServer
+	scheduler     *scheduler.Scheduler
+	torrentClient *torrent.Client
+	port          int
+	httpServer    *http.Server
+	webDir        string
+	nextID        int
 }
 
 // NewServer initializes the backend server.
@@ -196,6 +198,10 @@ func (s *Server) createAndStartTask(url, targetPath string, conns int, speedLimi
 	taskID := strconv.Itoa(s.nextID)
 	s.nextID++
 	s.mu.Unlock()
+
+	if isTorrentInput(url) {
+		return s.createAndStartTorrentTask(taskID, url, targetPath, schedTime)
+	}
 
 	cfg := engine.DefaultConfig(url, targetPath)
 	if conns > 0 {
@@ -388,3 +394,119 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleProxyStream(w http.ResponseWriter, r *http.Request) {
 	s.streamServer.ServeHTTP(w, r)
 }
+
+func isTorrentInput(input string) bool {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	if strings.HasPrefix(lower, "magnet:?") {
+		return true
+	}
+	if strings.HasSuffix(lower, ".torrent") {
+		return true
+	}
+	if info, err := os.Stat(input); err == nil && !info.IsDir() {
+		if strings.HasSuffix(strings.ToLower(info.Name()), ".torrent") {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Server) createAndStartTorrentTask(taskID, url, targetPath string, schedTime *time.Time) (*TaskEntry, error) {
+	s.mu.Lock()
+	if s.torrentClient == nil {
+		tc, err := torrent.NewClient(torrent.DefaultClientConfig("./downloads"))
+		if err != nil {
+			s.mu.Unlock()
+			return nil, fmt.Errorf("failed to init torrent client: %w", err)
+		}
+		s.torrentClient = tc
+	}
+	client := s.torrentClient
+	s.mu.Unlock()
+
+	dl, err := client.AddInput(context.Background(), url)
+	if err != nil {
+		return nil, fmt.Errorf("failed adding torrent input: %w", err)
+	}
+
+	initialStatus := engine.StatusDownloading
+	if schedTime != nil {
+		initialStatus = engine.StatusScheduled
+	}
+
+	name := "Torrent (" + dl.InfoHash()[:8] + ")"
+	if dl.HasMetadata() {
+		name = dl.Name()
+	}
+
+	entry := &TaskEntry{
+		ID:                taskID,
+		URL:               url,
+		Filename:          name,
+		TargetPath:        dl.SavePath(),
+		TotalSize:         dl.TotalLength(),
+		Status:            initialStatus,
+		ScheduledAt:       schedTime,
+		CreatedAt:         time.Now(),
+		ActiveConnections: 0,
+	}
+
+	s.mu.Lock()
+	s.tasks[taskID] = entry
+	s.mu.Unlock()
+
+	runTorrent := func() {
+		ctx, cancel := context.WithCancel(context.Background())
+		s.mu.Lock()
+		entry.Cancel = cancel
+		entry.Status = engine.StatusDownloading
+		s.mu.Unlock()
+
+		go func() {
+			if !dl.HasMetadata() {
+				_ = dl.WaitForMetadata(ctx)
+				s.mu.Lock()
+				entry.Filename = dl.Name()
+				entry.TotalSize = dl.TotalLength()
+				entry.TargetPath = dl.SavePath()
+				s.mu.Unlock()
+			}
+			dl.Start()
+
+			ticker := time.NewTicker(500 * time.Millisecond)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					stats := dl.Stats()
+					s.mu.Lock()
+					entry.DownloadedBytes = stats.CompletedBytes
+					entry.TotalSize = stats.TotalBytes
+					entry.SpeedBytesPerSec = stats.DownloadSpeed
+					entry.ProgressPercent = stats.Progress
+					entry.ActiveConnections = stats.ConnectedPeers
+					if stats.Progress >= 100.0 {
+						entry.Status = engine.StatusCompleted
+					}
+					s.mu.Unlock()
+
+					if stats.Progress >= 100.0 {
+						return
+					}
+				}
+			}
+		}()
+	}
+
+	if schedTime != nil {
+		_, _ = s.scheduler.Schedule(taskID, *schedTime, runTorrent)
+	} else {
+		runTorrent()
+	}
+
+	return entry, nil
+}
+

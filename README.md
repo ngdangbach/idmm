@@ -11,9 +11,10 @@ IDMM là giải pháp thay thế mã nguồn mở hiện đại cho IDM truyền
 * 🚀 **Ghi đĩa trực tiếp (Direct-to-Disk / Zero-Merge):** Cấp phát trước kích thước tệp và sử dụng `io.WriterAt` để các luồng ghi song song trực tiếp vào tệp đích. Hoàn toàn không mất thời gian ghép các tệp tạm (`.tmp`).
 * 🎬 **Stream-as-you-Download:** Tích hợp Local HTTP Streaming Server (`/stream/`). Ưu tiên kéo các byte đầu (metadata) và cửa sổ xem hiện tại, cho phép mở xem video trong VLC hoặc trình phát tích hợp ngay khi mới tải 1–2%.
 * 📺 **Tải video HLS / m3u8 đa luồng:** Tự động bắt luồng stream, giải mã AES-128 và ghép thành file `.mp4`/`.ts` hoàn chỉnh.
+* 🧲 **Hỗ trợ BitTorrent & Magnet Link:** Tích hợp BitTorrent P2P Engine (DHT, Trackers, Peer Swarm). Tự động nhận diện và tải các liên kết `magnet:?xt=...` hoặc file `.torrent` qua cả CLI và Dashboard.
 * 🖥️ **Desktop App Hiện Đại:** Giao diện Dark Mode với Glassmorphism, biểu đồ thông lượng thời gian thực (Speed Sparkline) và thanh trực quan hóa tiến độ từng luồng kết nối (Segment Visualizer Bar).
 * ⏰ **Lập lịch tải tự động (Download Scheduler):** Hẹn giờ bắt đầu tải thông minh theo thời gian thực (hỗ trợ hẹn giờ trực tiếp từ Dashboard).
-* 🌐 **Browser Extension (Manifest V3):** Tự động bắt link tải trên Chrome / Edge, tích hợp nút nổi *"Download with IDMM"* trên các trình phát video web.
+* 🌐 **Browser Extension (Manifest V3):** Tự động bắt link tải trên Chrome / Edge / Firefox, tích hợp nút nổi *"Download with IDMM"* trên các trình phát video web.
 
 ---
 
@@ -35,6 +36,7 @@ idmm/
 ├── cmd/                  # Mã nguồn ứng dụng (idmm, idmm-cli, idmm-host)
 ├── internal/
 │   ├── engine/           # Lõi tải đa luồng, chia đoạn động, ghi đĩa trực tiếp
+│   ├── torrent/          # Lõi BitTorrent P2P Engine & Magnet Link Resolver
 │   ├── media/            # Local HTTP Streaming Proxy & HLS Downloader
 │   ├── scheduler/        # Hẹn giờ lập lịch tải thông minh
 │   ├── server/           # REST APIs & Server-Sent Events (SSE)
@@ -61,9 +63,17 @@ Chạy trực tiếp `dist\IDMM\idmm.exe` (hoặc `bin\idmm.exe`):
 Cửa sổ ứng dụng độc lập Dark Mode sẽ tự động mở lên với đầy đủ tính năng: thêm link, hẹn giờ, chỉnh số luồng, giới hạn băng thông, xem video trực tiếp.
 
 ### 3. Sử dụng dòng lệnh (CLI)
-Tải file với 16 luồng:
+Tải file HTTP với 16 luồng:
 ```powershell
 .\dist\IDMM\idmm-cli.exe -url "https://proof.ovh.net/files/10Mb.dat" -c 16
+```
+Tải file qua **BitTorrent (.torrent hoặc Magnet link)**:
+```powershell
+# Tải qua file .torrent
+.\dist\IDMM\idmm-cli.exe -torrent "ubuntu-24.04.torrent" -o "D:/Downloads"
+
+# Tải qua link Magnet
+.\dist\IDMM\idmm-cli.exe -magnet "magnet:?xt=urn:btih:..." -o "D:/Downloads"
 ```
 Tải và kích hoạt xem trực tiếp (Stream-as-you-download):
 ```powershell
