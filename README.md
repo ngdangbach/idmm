@@ -27,6 +27,8 @@ idmm/
 │   ├── idmm-host.exe     # Native Messaging Host (7.0 MB)
 │   ├── web/              # Bundle tài nguyên Web UI
 │   ├── extension/        # Chrome/Edge Extension Manifest V3
+│   ├── extension-firefox/# Firefox Extension (Gecko WebExtension)
+│   ├── idmm-firefox.xpi  # Gói cài đặt Firefox XPI
 │   ├── install.bat       # Script cài đặt 1-click & đăng ký Registry
 │   └── uninstall.bat     # Script gỡ cài đặt sạch sẽ
 ├── bin/                  # Các file nhị phân biên dịch
@@ -36,7 +38,7 @@ idmm/
 │   ├── media/            # Local HTTP Streaming Proxy & HLS Downloader
 │   ├── scheduler/        # Hẹn giờ lập lịch tải thông minh
 │   ├── server/           # REST APIs & Server-Sent Events (SSE)
-│   └── nativemsg/        # Giao thức Native Messaging chuẩn Chrome/Edge
+│   └── nativemsg/        # Giao thức Native Messaging chuẩn Chrome, Edge & Firefox
 ├── web/                  # Giao diện Desktop Web (HTML, CSS, JS)
 ├── extension/            # Tiện ích mở rộng Chrome/Edge (Manifest V3)
 ├── extension-firefox/    # Tiện ích mở rộng Mozilla Firefox (Gecko WebExtension)
@@ -52,7 +54,7 @@ Bạn chỉ cần mở thư mục `dist\IDMM` và nhấp đúp chạy:
 ```cmd
 install.bat
 ```
-Script sẽ tự động đăng ký Native Messaging Host vào Windows Registry cho cả Chrome, Edge và Mozilla Firefox.
+Script sẽ tự động đăng ký Native Messaging Host vào Windows Registry cho cả **Google Chrome, Microsoft Edge và Mozilla Firefox**.
 
 ### 2. Chạy Ứng dụng Desktop
 Chạy trực tiếp `dist\IDMM\idmm.exe` (hoặc `bin\idmm.exe`):
@@ -82,11 +84,17 @@ Tải video luồng trực tuyến m3u8 (HLS):
 3. Bấm **"Load unpacked"** (Tải tiện ích đã giải nén) và chọn thư mục `dist\IDMM\extension` (hoặc `D:\Personal\idmm\extension`).
 
 #### B. Dành cho Mozilla Firefox:
-1. Mở Firefox và truy cập vào địa chỉ:
-   * `about:debugging#/runtime/this-firefox`
-2. Bấm nút **"Load Temporary Add-on..."** (Tải tiện ích tạm thời).
-3. Chọn file `manifest.json` trong thư mục `dist\IDMM\extension-firefox` (hoặc `D:\Personal\idmm\extension-firefox`).
-4. Extension IDMM đã sẵn sàng hoạt động trên Firefox, tự động bắt link và kết nối trực tiếp với IDMM qua Native Messaging!
+1. **Nạp tiện ích vào Firefox:**
+   * Mở Firefox và truy cập địa chỉ: `about:debugging#/runtime/this-firefox`
+   * Bấm nút **"Load Temporary Add-on..."** (Tải tiện ích bổ sung tạm thời...).
+   * Chọn file `manifest.json` trong thư mục `dist\IDMM\extension-firefox` (hoặc `D:\Personal\idmm\extension-firefox`).
+2. **Ghim biểu tượng lên thanh công cụ (Pin to Toolbar):**
+   * Nhấp vào biểu tượng **Mảnh ghép 🧩 (Extensions)** ở góc trên bên phải thanh công cụ.
+   * Tìm **IDMM — Next-Gen Download Accelerator** -> bấm biểu tượng **Bánh răng ⚙️** (hoặc chuột phải) -> chọn **"Pin to Toolbar"**.
+3. **Cài đặt vĩnh viễn (Tùy chọn file `.xpi`):**
+   * Bộ cài đóng gói sẵn nằm tại `dist\IDMM\idmm-firefox.xpi`.
+   * Trên Firefox Developer / Beta / Nightly / ESR: truy cập `about:config`, đổi `xpinstall.signatures.required` thành `false` rồi kéo thả file `.xpi` vào trình duyệt để cài đặt vĩnh viễn.
+   * Trên Firefox thông thường: có thể tải file `.xpi` lên [addons.mozilla.org](https://addons.mozilla.org/developers/) (chế độ Unlisted) để Mozilla ký số tự động miễn phí trong 2 phút.
 
 ---
 
