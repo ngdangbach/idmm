@@ -5,6 +5,7 @@ PLAN.md
 *.bak
 *.zip
 *.xpi
+IDMM-*/
 
 # Telegram credentials and session states
 *config.telegram.yaml

@@ -49,12 +49,16 @@
 
     <!-- Action Buttons -->
     <div class="header-actions">
-      <button class="btn btn-secondary" id="btnOpenTorrentHeader" title="Add BitTorrent or Magnet download">
-        <span style="margin-right: 6px;">🧲</span>
+      <button class="btn btn-torrent" id="btnOpenTorrentHeader" title="Add BitTorrent or Magnet download">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 3v8a6 6 0 0 0 12 0V3"></path>
+          <line x1="6" y1="7" x2="10" y2="7"></line>
+          <line x1="14" y1="7" x2="18" y2="7"></line>
+        </svg>
         <span>Add Torrent</span>
       </button>
       <button class="btn btn-primary" id="btnOpenNewTask">
-        <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2.5" fill="none">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
@@ -165,7 +169,7 @@
         <div class="form-group">
           <label for="inputUrl">Download URL / Magnet link / .torrent file:</label>
           <div class="input-with-button">
-            <input type="text" id="inputUrl" required placeholder="https://..., magnet:?xt=..., or D:\file.torrent" autofocus>
+            <input type="text" id="inputUrl" required placeholder="URL or magnet link..." autofocus>
             <button type="button" class="btn btn-secondary" id="btnPasteUrl">📋 Paste</button>
             <button type="button" class="btn btn-secondary" id="btnSelectTorrent" title="Select .torrent file from computer">📁 .torrent</button>
             <input type="file" id="inputTorrentFile" accept=".torrent" style="display: none;">
