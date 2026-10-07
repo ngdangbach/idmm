@@ -96,6 +96,10 @@
           <span class="nav-icon">📄</span>
           <span class="nav-text">Documents</span>
         </button>
+        <button class="nav-item" data-filter="torrent">
+          <span class="nav-icon">🧲</span>
+          <span class="nav-text">Torrents & Magnets</span>
+        </button>
       </div>
 
       <!-- Live Speed Sparkline Card -->
@@ -151,10 +155,12 @@
       </div>
       <form id="newTaskForm">
         <div class="form-group">
-          <label for="inputUrl">Download URL (HTTP / HTTPS / M3U8):</label>
+          <label for="inputUrl">Download URL / Magnet / .torrent file:</label>
           <div class="input-with-button">
-            <input type="url" id="inputUrl" required placeholder="https://example.com/large-video.mp4" autofocus>
+            <input type="text" id="inputUrl" required placeholder="https://..., magnet:?xt=..., or file.torrent" autofocus>
             <button type="button" class="btn btn-secondary" id="btnPasteUrl">📋 Paste</button>
+            <button type="button" class="btn btn-secondary" id="btnSelectTorrent" title="Upload local .torrent file">📁 .torrent</button>
+            <input type="file" id="inputTorrentFile" accept=".torrent" style="display: none;">
           </div>
         </div>
 

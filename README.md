@@ -1,14 +1,15 @@
 # 🚀 IDMM (Internet Download Manager Modern)
 
-> **Next-Gen Multi-Threaded Download Accelerator & Media Streamer built in Go.**
+> **Next-Gen Multi-Threaded Download Accelerator, BitTorrent Engine & Media Streamer built in Go.**
 
-IDMM is a high-performance open-source alternative to legacy download managers like IDM. It eliminates slow post-download file merging through zero-merge direct-to-disk allocations, features real-time HTTP media streaming (*Stream-as-you-download*), modern dark mode UI, and seamless browser integration across Google Chrome, Microsoft Edge, and Mozilla Firefox.
+IDMM is a high-performance open-source alternative to legacy download managers like IDM. It eliminates slow post-download file merging through zero-merge direct-to-disk allocations, features real-time HTTP media streaming (*Stream-as-you-download*), native BitTorrent & Magnet link acceleration, modern dark mode UI, and seamless browser integration across Google Chrome, Microsoft Edge, and Mozilla Firefox.
 
 ---
 
 ## ⚡ Key Highlights
 
 * 🚀 **Direct-to-Disk / Zero-Merge Engine:** Pre-allocates target file capacity and parallelizes chunk streams directly via `io.WriterAt`. Completely eliminates slow, resource-heavy `.tmp` concatenation phases.
+* 🧲 **Native BitTorrent & Magnet Support:** Full peer-to-peer engine powered by DHT, Trackers, and Peer Swarm. Automatically resolves and accelerates `.torrent` files and `magnet:?xt=...` links via CLI and Dashboard.
 * 🎬 **Stream-as-you-Download:** Built-in Local HTTP Range Streaming Server (`/stream/`). Prioritizes metadata headers and active playback windows, allowing instant video playback in VLC or embedded web players at just 1–2% progress.
 * 📺 **Multi-Threaded HLS / m3u8 Video Downloader:** Automatically sniffs stream playlists, decrypts AES-128 segments concurrently, and packages pristine `.mp4` / `.ts` containers.
 * 🖥️ **Modern Desktop Web Dashboard:** Sleek Dark Mode UI with Glassmorphism, real-time throughput sparklines, and an interactive connection segment visualizer.
@@ -37,6 +38,7 @@ idmm/
 ├── cmd/                  # Entry points (idmm, idmm-cli, idmm-host)
 ├── internal/
 │   ├── engine/           # Multi-threaded download engine & direct-to-disk chunking
+│   ├── torrent/          # BitTorrent P2P engine & Magnet URI resolver
 │   ├── media/            # Local HTTP Streaming proxy & HLS downloader
 │   ├── scheduler/        # Task scheduling and timer execution
 │   ├── server/           # REST APIs, SSE events & WebSocket endpoints
@@ -66,6 +68,18 @@ The standalone modern Dark Mode dashboard will launch, allowing you to add URLs,
 Download HTTP/HTTPS files with 16 connections:
 ```powershell
 .\dist\IDMM\idmm-cli.exe -url "https://proof.ovh.net/files/10Mb.dat" -c 16
+```
+
+Download via **BitTorrent (.torrent or Magnet link)**:
+```powershell
+# Download using a local .torrent file
+.\dist\IDMM\idmm-cli.exe -torrent "ubuntu-24.04.torrent" -o "D:/Downloads"
+
+# Download using a Magnet link
+.\dist\IDMM\idmm-cli.exe -magnet "magnet:?xt=urn:btih:..." -o "D:/Downloads"
+
+# Auto-detects input type directly:
+.\dist\IDMM\idmm-cli.exe "magnet:?xt=urn:btih:..."
 ```
 
 Download and stream concurrently (*Stream-as-you-download*):
@@ -108,7 +122,7 @@ Run the comprehensive unit test suite:
 ```powershell
 go test -v ./...
 ```
-All packages (`internal/engine`, `internal/media`, `internal/scheduler`, `internal/server`, `internal/nativemsg`) achieve **100% PASS**.
+All packages (`internal/engine`, `internal/torrent`, `internal/media`, `internal/scheduler`, `internal/server`, `internal/nativemsg`) achieve **100% PASS**.
 
 Build standalone distribution packages:
 ```powershell

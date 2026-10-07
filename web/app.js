@@ -59,8 +59,10 @@ function formatDuration(sec) {
 }
 
 // Helper: Detect Icon
-function getFileIcon(filename) {
+function getFileIcon(filename, url) {
+  if ((url && url.startsWith('magnet:')) || (filename && filename.toLowerCase().includes('torrent'))) return '🧲';
   const ext = (filename || '').split('.').pop().toLowerCase();
+  if (ext === 'torrent') return '🧲';
   if (['mp4', 'mkv', 'mov', 'webm', 'ts', 'm3u8', 'avi'].includes(ext)) return '🎬';
   if (['mp3', 'wav', 'flac', 'aac', 'ogg'].includes(ext)) return '🎵';
   if (['zip', 'rar', '7z', 'tar', 'gz', 'iso'].includes(ext)) return '🗜️';
@@ -133,9 +135,10 @@ function renderTasks() {
     // Filter by category
     if (currentFilter === 'active' && t.status !== 'DOWNLOADING') return false;
     if (currentFilter === 'completed' && t.status !== 'COMPLETED') return false;
-    if (currentFilter === 'video' && !getFileIcon(t.filename).includes('🎬')) return false;
-    if (currentFilter === 'archive' && !getFileIcon(t.filename).includes('🗜️')) return false;
-    if (currentFilter === 'document' && !getFileIcon(t.filename).includes('📄')) return false;
+    if (currentFilter === 'video' && !getFileIcon(t.filename, t.url).includes('🎬')) return false;
+    if (currentFilter === 'archive' && !getFileIcon(t.filename, t.url).includes('🗜️')) return false;
+    if (currentFilter === 'document' && !getFileIcon(t.filename, t.url).includes('📄')) return false;
+    if (currentFilter === 'torrent' && !(t.url.startsWith('magnet:') || (t.filename && t.filename.toLowerCase().includes('torrent')) || t.url.endsWith('.torrent') || t.url.startsWith('file://'))) return false;
 
     // Filter by search
     if (query && !t.filename.toLowerCase().includes(query) && !t.url.toLowerCase().includes(query)) {
@@ -156,7 +159,7 @@ function renderTasks() {
 
   // Build cards HTML
   const cardsHtml = filtered.map(t => {
-    const isVideo = getFileIcon(t.filename).includes('🎬');
+    const isVideo = getFileIcon(t.filename, t.url).includes('🎬');
     const isDownloading = t.status === 'DOWNLOADING';
     const isCompleted = t.status === 'COMPLETED';
     const isPaused = t.status === 'PAUSED';
@@ -181,7 +184,7 @@ function renderTasks() {
       <div class="task-card" data-id="${t.id}">
         <div class="task-header">
           <div class="task-title-group">
-            <span class="file-icon">${getFileIcon(t.filename)}</span>
+            <span class="file-icon">${getFileIcon(t.filename, t.url)}</span>
             <span class="task-filename" title="${t.filename}">${t.filename}</span>
             <span class="task-status-pill ${statusClass}">${t.status}</span>
           </div>
@@ -350,6 +353,39 @@ btnPasteUrl.onclick = async () => {
     if (text) inputUrl.value = text.trim();
   } catch (e) {}
 };
+
+const btnSelectTorrent = document.getElementById('btnSelectTorrent');
+const inputTorrentFile = document.getElementById('inputTorrentFile');
+
+if (btnSelectTorrent && inputTorrentFile) {
+  btnSelectTorrent.onclick = () => inputTorrentFile.click();
+  inputTorrentFile.onchange = async () => {
+    if (!inputTorrentFile.files.length) return;
+    const file = inputTorrentFile.files[0];
+    const formData = new FormData();
+    formData.append('torrent', file);
+    const saveDir = document.getElementById('inputSaveDir').value.trim();
+    if (saveDir) formData.append('target_path', saveDir);
+
+    try {
+      const res = await fetch('/api/tasks/upload-torrent', {
+        method: 'POST',
+        body: formData
+      });
+      if (res.ok) {
+        newTaskModal.classList.remove('open');
+        newTaskForm.reset();
+        inputTorrentFile.value = '';
+        fetchTasks();
+      } else {
+        const err = await res.text();
+        alert('Failed to upload torrent: ' + err);
+      }
+    } catch (err) {
+      alert('Failed to upload torrent: ' + err);
+    }
+  };
+}
 
 newTaskForm.onsubmit = async (e) => {
   e.preventDefault();

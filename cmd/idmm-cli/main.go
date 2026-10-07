@@ -13,7 +13,24 @@ import (
 
 	"idmm/internal/engine"
 	"idmm/internal/media"
+	"idmm/internal/torrent"
 )
+
+func isTorrentInput(input string) bool {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	if strings.HasPrefix(lower, "magnet:?") {
+		return true
+	}
+	if strings.HasSuffix(lower, ".torrent") {
+		return true
+	}
+	if info, err := os.Stat(input); err == nil && !info.IsDir() {
+		if strings.HasSuffix(strings.ToLower(info.Name()), ".torrent") {
+			return true
+		}
+	}
+	return false
+}
 
 func formatBytes(bytes int64) string {
 	if bytes < 0 {
@@ -85,7 +102,9 @@ func renderSegmentBar(segments []*engine.Segment, width int) string {
 
 func main() {
 	urlFlag := flag.String("url", "", "URL to download")
-	outFlag := flag.String("o", "", "Destination file path")
+	torrentFlag := flag.String("torrent", "", "Path or URL to .torrent file")
+	magnetFlag := flag.String("magnet", "", "Magnet URI (magnet:?xt=...)")
+	outFlag := flag.String("o", "", "Destination file path or directory")
 	connsFlag := flag.Int("c", 8, "Concurrent connection count (default 8)")
 	limitFlag := flag.Int64("limit", 0, "Speed limit in KB/s (0 = unlimited)")
 	streamFlag := flag.Bool("stream", false, "Enable local HTTP streaming proxy (stream-as-you-download)")
@@ -94,15 +113,22 @@ func main() {
 	flag.Parse()
 
 	targetURL := *urlFlag
-	if targetURL == "" && flag.NArg() > 0 {
+	if *torrentFlag != "" {
+		targetURL = *torrentFlag
+	} else if *magnetFlag != "" {
+		targetURL = *magnetFlag
+	} else if targetURL == "" && flag.NArg() > 0 {
 		targetURL = flag.Arg(0)
 	}
 
 	if targetURL == "" {
 		fmt.Println("🚀 IDMM (Next-Gen Download Accelerator & Media Streamer CLI)")
 		fmt.Println("Usage: idmm-cli -url <URL> [-o output] [-c conns] [-stream] [-limit KB/s]")
+		fmt.Println("       idmm-cli -torrent <file.torrent> [-o output]")
+		fmt.Println("       idmm-cli -magnet <magnet_uri> [-o output]")
 		fmt.Println("Example: idmm-cli https://example.com/movie.mp4 -stream")
-		fmt.Println("Example HLS: idmm-cli https://example.com/stream/index.m3u8 -o video.mp4")
+		fmt.Println("Example Torrent: idmm-cli ubuntu-24.04.torrent -o ./downloads")
+		fmt.Println("Example Magnet:  idmm-cli \"magnet:?xt=urn:btih:...\"")
 		os.Exit(1)
 	}
 
@@ -112,6 +138,12 @@ func main() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
+	// Check if target is a BitTorrent / Magnet link
+	if isTorrentInput(targetURL) {
+		runTorrentDownload(ctx, sigChan, targetURL, *outFlag)
+		return
+	}
+
 	// Check if target is an HLS / m3u8 stream
 	if strings.Contains(targetURL, ".m3u8") {
 		runHLSDownload(ctx, sigChan, targetURL, *outFlag, *connsFlag)
@@ -120,6 +152,95 @@ func main() {
 
 	// Standard Multi-threaded File Download
 	runStandardDownload(ctx, sigChan, targetURL, *outFlag, *connsFlag, *limitFlag, *streamFlag, *streamPort, *probeOnly)
+}
+
+func runTorrentDownload(ctx context.Context, sigChan chan os.Signal, targetInput, outDir string) {
+	if outDir == "" {
+		outDir = "./downloads"
+	}
+	_ = os.MkdirAll(outDir, 0755)
+
+	fmt.Println("🧲 [BitTorrent Detected] Initializing IDMM P2P Torrent Engine...")
+	fmt.Printf("📁 Output directory: %s\n", outDir)
+
+	cfg := torrent.DefaultClientConfig(outDir)
+	client, err := torrent.NewClient(cfg)
+	if err != nil {
+		fmt.Printf("❌ Failed to initialize torrent engine: %v\n", err)
+		os.Exit(1)
+	}
+	defer client.Close()
+
+	fmt.Println("⏳ Resolving torrent metadata from peers & trackers (DHT active)...")
+	dl, err := client.AddInput(ctx, targetInput)
+	if err != nil {
+		fmt.Printf("❌ Failed adding torrent input: %v\n", err)
+		os.Exit(1)
+	}
+
+	metaCtx, metaCancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer metaCancel()
+
+	err = dl.WaitForMetadata(metaCtx)
+	if err != nil {
+		fmt.Printf("❌ Failed retrieving metadata: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("------------------------------------------------------------")
+	fmt.Printf("📄 Torrent Name:   %s\n", dl.Name())
+	fmt.Printf("📦 Total Size:     %s (%d bytes)\n", formatBytes(dl.TotalLength()), dl.TotalLength())
+	files := dl.Files()
+	fmt.Printf("📑 Included Files: %d file(s)\n", len(files))
+	for i, f := range files {
+		if i < 5 {
+			fmt.Printf("   ├─ [%d] %s (%s)\n", i+1, f.Path, formatBytes(f.Length))
+		} else if i == 5 {
+			fmt.Printf("   └─ ... and %d more file(s)\n", len(files)-5)
+			break
+		}
+	}
+	fmt.Println("------------------------------------------------------------")
+
+	dl.Start()
+	fmt.Println("🚀 Torrent download started! Connecting to peer swarm...")
+
+	go func() {
+		<-sigChan
+		fmt.Println("\n\n⏸️  Interrupt received. Gracefully closing P2P connections...")
+		dl.Drop()
+		_ = client.Close()
+		os.Exit(1)
+	}()
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	startTime := time.Now()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			stats := dl.Stats()
+			fmt.Printf("\r⬇️  [Torrent %5.1f%%] %s / %s | %s/s | Peers: %d | ETA: %s   ",
+				stats.Progress,
+				formatBytes(stats.CompletedBytes),
+				formatBytes(stats.TotalBytes),
+				formatBytes(stats.DownloadSpeed),
+				stats.ConnectedPeers,
+				stats.ETA,
+			)
+
+			if stats.Progress >= 100.0 {
+				duration := time.Since(startTime)
+				fmt.Printf("\n\n🎉 [100.0%%] Torrent download finished successfully in %s!\n", duration.Round(time.Second))
+				fmt.Printf("📁 Destination: %s\n", dl.SavePath())
+				return
+			}
+		}
+	}
 }
 
 func runHLSDownload(ctx context.Context, sigChan chan os.Signal, targetURL, outPath string, conns int) {
