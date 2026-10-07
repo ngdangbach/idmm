@@ -3,6 +3,7 @@ scripts
 PLAN.md
 *~
 *.bak
+*.zip
 
 # Telegram credentials and session states
 *config.telegram.yaml
