@@ -28,7 +28,7 @@ func main() {
 	cfg, err := telegram.LoadConfig(*configPath)
 	if err != nil {
 		fmt.Printf("❌ Lỗi cấu hình: %v\n", err)
-		os.Exit(1)
+		pauseAndExit(1)
 	}
 
 	if *targetFlag != "" {
@@ -45,7 +45,7 @@ func main() {
 	st, err := telegram.LoadState(stateFile)
 	if err != nil {
 		fmt.Printf("❌ Lỗi khởi tạo state: %v\n", err)
-		os.Exit(1)
+		pauseAndExit(1)
 	}
 
 	svc := telegram.NewService(cfg, st)
@@ -56,7 +56,7 @@ func main() {
 	if *listFlag {
 		if err := svc.ListDialogs(ctx); err != nil {
 			fmt.Printf("❌ Lỗi: %v\n", err)
-			os.Exit(1)
+			pauseAndExit(1)
 		}
 		return
 	}
@@ -72,8 +72,14 @@ func main() {
 
 	if err := svc.Start(ctx); err != nil && err != context.Canceled {
 		fmt.Printf("❌ Lỗi vận hành Telegram Downloader: %v\n", err)
-		os.Exit(1)
+		pauseAndExit(1)
 	}
 
 	fmt.Println("👋 Đã dừng tiến trình an toàn.")
+}
+
+func pauseAndExit(code int) {
+	fmt.Println("\n👉 Nhấn Enter để đóng cửa sổ...")
+	_, _ = os.Stdin.Read(make([]byte, 1))
+	os.Exit(code)
 }

@@ -1,10 +1,11 @@
 package telegram
 
 import (
+	"bufio"
 	"fmt"
 	"os"
-
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -112,7 +113,27 @@ func LoadConfig(filePath string) (*Config, error) {
 	}
 
 	if cfg.Telegram.APIID == 0 || cfg.Telegram.APIHash == "" {
-		return nil, fmt.Errorf("api_id và api_hash bắt buộc phải có giá trị")
+		reader := bufio.NewReader(os.Stdin)
+		fmt.Println("⚠️  Chưa cấu hình Telegram API ID & API Hash.")
+		fmt.Println("   (Bạn có thể lấy miễn phí tại https://my.telegram.org -> API development tools)")
+		if cfg.Telegram.APIID == 0 {
+			fmt.Print("👉 Nhập API ID: ")
+			text, _ := reader.ReadString('\n')
+			var id int
+			fmt.Sscanf(strings.TrimSpace(text), "%d", &id)
+			cfg.Telegram.APIID = id
+		}
+		if cfg.Telegram.APIHash == "" {
+			fmt.Print("👉 Nhập API Hash: ")
+			text, _ := reader.ReadString('\n')
+			cfg.Telegram.APIHash = strings.TrimSpace(text)
+		}
+		if cfg.Telegram.APIID != 0 && cfg.Telegram.APIHash != "" {
+			_ = SaveConfig(resolvedPath, cfg)
+			fmt.Println("✅ Đã lưu API ID & API Hash vào file cấu hình!")
+		} else {
+			return nil, fmt.Errorf("api_id và api_hash bắt buộc phải có giá trị")
+		}
 	}
 
 	// Chuẩn hóa SessionFile: ưu tiên tìm file session có sẵn ở cạnh config hoặc exe
