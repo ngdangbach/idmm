@@ -1,0 +1,25 @@
+# Cấu hình Telegram Media Downloader cho IDMM
+telegram:
+  api_id: 123
+  api_hash: "123"
+  session_file: "session.telegram.json"
+  phone: "" # Để trống để nhập tương tác khi chạy lần đầu
+
+target:
+  # Username nhóm (ví dụ: "mygroup"), link invite ("https://t.me/+AbCdEf"), hoặc ID số (-100123456789)
+  identifier: ""
+  # Link mời dùng để tự động vào lại khi bị kick (nếu nhóm là private)
+  # Ví dụ: "https://t.me/+AbCdEfGhIjK..."
+  invite_link: ""
+
+settings:
+  # Thư mục lưu file: tự động tạo <download_dir>/YYYY-MM-DD/images/ và /videos/
+  download_dir: "./downloads"
+  # Tự động join lại khi bị kick (false = chế độ khách xem/preview cho nhóm công khai không cần join)
+  auto_rejoin: false
+  # Khoảng thời gian (giây) thử vào lại nếu bị kick (khi auto_rejoin: true)
+  rejoin_retry_interval_sec: 60
+  # Quét và tải bù lịch sử tin nhắn từ lần chạy trước
+  sync_history: true
+  # Tải song song tối đa bao nhiêu file cùng lúc
+  max_concurrent_downloads: 3

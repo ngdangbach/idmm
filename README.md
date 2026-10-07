@@ -14,6 +14,7 @@ IDMM là giải pháp thay thế mã nguồn mở hiện đại cho IDM truyền
 * 🖥️ **Desktop App Hiện Đại:** Giao diện Dark Mode với Glassmorphism, biểu đồ thông lượng thời gian thực (Speed Sparkline) và thanh trực quan hóa tiến độ từng luồng kết nối (Segment Visualizer Bar).
 * ⏰ **Lập lịch tải tự động (Download Scheduler):** Hẹn giờ bắt đầu tải thông minh theo thời gian thực (hỗ trợ hẹn giờ trực tiếp từ Dashboard).
 * 🌐 **Browser Extension (Manifest V3):** Tự động bắt link tải trên Chrome / Edge, tích hợp nút nổi *"Download with IDMM"* trên các trình phát video web.
+* 📱 **Telegram Media Downloader (Branch `telegram-intergration`):** Tự động tải video/ảnh từ Telegram MTProto theo thời gian thực, lưu trữ phân loại ngày vào 2 folder con `images/` và `videos/`, quét bù toàn bộ lịch sử tin nhắn cũ và cơ chế Auto Re-join. *(Xem hướng dẫn chi tiết tại [README.telegram.md](README.telegram.md))*
 
 ---
 
@@ -69,6 +70,13 @@ Tải video luồng trực tuyến m3u8 (HLS):
 ```powershell
 .\dist\IDMM\idmm-cli.exe -url "https://example.com/playlist.m3u8" -o "video.mp4" -c 16
 ```
+
+Tự động tải Media từ Telegram (Auto Re-join & Lưu theo ngày):
+```powershell
+# Chạy với nhóm chỉ định và link dự phòng khi bị kick
+.\dist\IDMM\idmm-cli.exe -tg -tg-target "@group_username" -tg-invite "https://t.me/+inviteHash"
+```
+> Media được tự động phân loại lưu vào: `downloads/<YYYY-MM-DD>/images/` và `downloads/<YYYY-MM-DD>/videos/`.
 
 ### 4. Cài đặt Browser Extension trên Chrome / Edge
 1. Mở trình duyệt và truy cập trang quản lý extension:

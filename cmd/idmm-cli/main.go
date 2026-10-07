@@ -13,6 +13,7 @@ import (
 
 	"idmm/internal/engine"
 	"idmm/internal/media"
+	"idmm/internal/telegram"
 )
 
 func formatBytes(bytes int64) string {
@@ -91,7 +92,25 @@ func main() {
 	streamFlag := flag.Bool("stream", false, "Enable local HTTP streaming proxy (stream-as-you-download)")
 	streamPort := flag.Int("port", 0, "Port for local streaming proxy (0 = auto)")
 	probeOnly := flag.Bool("probe", false, "Probe file information and exit")
+
+	// Telegram Downloader Flags
+	tgFlag := flag.Bool("telegram", false, "Start Telegram Media Auto-Downloader")
+	tgShort := flag.Bool("tg", false, "Alias for -telegram")
+	tgConfig := flag.String("tg-config", "config.telegram.yaml", "Telegram config YAML file")
+	tgTarget := flag.String("tg-target", "", "Target Telegram group identifier or username")
+	tgInvite := flag.String("tg-invite", "", "Telegram invite link for auto re-join")
 	flag.Parse()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	if *tgFlag || *tgShort {
+		runTelegramDownload(ctx, cancel, sigChan, *tgConfig, *tgTarget, *tgInvite, *outFlag)
+		return
+	}
 
 	targetURL := *urlFlag
 	if targetURL == "" && flag.NArg() > 0 {
@@ -101,16 +120,12 @@ func main() {
 	if targetURL == "" {
 		fmt.Println("🚀 IDMM (Next-Gen Download Accelerator & Media Streamer CLI)")
 		fmt.Println("Usage: idmm-cli -url <URL> [-o output] [-c conns] [-stream] [-limit KB/s]")
+		fmt.Println("       idmm-cli -tg [-tg-target <group>] [-tg-invite <link>]")
 		fmt.Println("Example: idmm-cli https://example.com/movie.mp4 -stream")
 		fmt.Println("Example HLS: idmm-cli https://example.com/stream/index.m3u8 -o video.mp4")
+		fmt.Println("Example Telegram: idmm-cli -tg -tg-target @mygroup")
 		os.Exit(1)
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	// Check if target is an HLS / m3u8 stream
 	if strings.Contains(targetURL, ".m3u8") {
@@ -278,4 +293,50 @@ func runStandardDownload(ctx context.Context, sigChan chan os.Signal, targetURL,
 		)
 		fmt.Printf("📁 Saved to: %s\n", downloader.TargetPath())
 	}
+}
+
+func runTelegramDownload(ctx context.Context, cancel context.CancelFunc, sigChan chan os.Signal, configPath, targetFlag, inviteFlag, dirFlag string) {
+	fmt.Println("================================================================")
+	fmt.Println("🚀 IDMM - Telegram Media Auto-Downloader & Streamer")
+	fmt.Println("   - Phân loại thư mục: <YYYY-MM-DD>/images & <YYYY-MM-DD>/videos")
+	fmt.Println("   - Tự động vào lại nhóm khi bị kick & Tiếp tục tải (Resume)")
+	fmt.Println("================================================================")
+
+	cfg, err := telegram.LoadConfig(configPath)
+	if err != nil {
+		fmt.Printf("❌ Lỗi cấu hình: %v\n", err)
+		os.Exit(1)
+	}
+
+	if targetFlag != "" {
+		cfg.Target.Identifier = targetFlag
+	}
+	if inviteFlag != "" {
+		cfg.Target.InviteLink = inviteFlag
+	}
+	if dirFlag != "" {
+		cfg.Settings.DownloadDir = dirFlag
+	}
+
+	stateFile := "state.telegram.json"
+	st, err := telegram.LoadState(stateFile)
+	if err != nil {
+		fmt.Printf("❌ Lỗi khởi tạo state: %v\n", err)
+		os.Exit(1)
+	}
+
+	svc := telegram.NewService(cfg, st)
+
+	go func() {
+		<-sigChan
+		fmt.Println("\n🛑 Nhận tín hiệu ngắt. Đang dừng an toàn và lưu trạng thái...")
+		cancel()
+	}()
+
+	if err := svc.Start(ctx); err != nil && err != context.Canceled {
+		fmt.Printf("❌ Lỗi vận hành: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("👋 Đã dừng tiến trình Telegram Downloader thành công.")
 }

@@ -1,0 +1,5 @@
+*config.telegram.yaml
+!*config.telegram.yaml.example
+*session.telegram.json*
+*state.telegram.json*
+*.session*
