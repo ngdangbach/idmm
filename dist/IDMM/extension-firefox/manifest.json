@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "IDMM — Next-Gen Download Accelerator",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Turbocharges downloads with IDMM multi-threaded engine and video sniffer.",
   "browser_specific_settings": {
     "gecko": {
