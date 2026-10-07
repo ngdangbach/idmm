@@ -5,7 +5,7 @@ const IDMM_API = "http://127.0.0.1:8989";
 let interceptEnabled = true;
 
 chrome.storage.local.get(['interceptEnabled'], (result) => {
-  if (result.interceptEnabled !== undefined) {
+  if (result && result.interceptEnabled !== undefined) {
     interceptEnabled = result.interceptEnabled;
   }
 });
@@ -97,7 +97,6 @@ async function dispatchToIDMM(url, filename) {
 }
 
 function notifyUser(title, message) {
-  // Can use chrome.notifications if permission available, or log
   console.log(`[IDMM Notification] ${title}: ${message}`);
 }
 

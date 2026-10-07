@@ -1,0 +1,9 @@
+{
+  "allowed_extensions": [
+    "idmm-downloader@personal.local"
+  ],
+  "description": "IDMM Next-Gen Download Accelerator Native Host for Firefox",
+  "name": "com.idmm.downloader",
+  "path": "D:\\Personal\\idmm\\dist\\IDMM\\idmm-host.exe",
+  "type": "stdio"
+}

@@ -1,0 +1,42 @@
+/* IDMM Video Sniffer Floating Button */
+.idmm-video-sniffer-btn {
+  position: absolute;
+  z-index: 2147483647;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: rgba(11, 15, 25, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(6, 182, 212, 0.45);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6), 0 0 12px rgba(6, 182, 212, 0.35);
+  color: #F3F4F6;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  pointer-events: auto;
+}
+
+.idmm-video-sniffer-btn:hover {
+  background: rgba(6, 182, 212, 0.95);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(6, 182, 212, 0.6);
+}
+
+.idmm-sniff-icon {
+  font-size: 14px;
+  display: inline-block;
+  animation: idmm-pulse 1.8s infinite;
+}
+
+@keyframes idmm-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}

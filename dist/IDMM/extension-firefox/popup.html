@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <div class="popup-header">
+      <div class="header-logo">
+        <span class="logo-bolt">⚡</span>
+        <span class="logo-text">IDMM</span>
+      </div>
+      <div class="status-indicator" id="statusPill">
+        <span class="status-dot"></span>
+        <span id="statusText">Checking...</span>
+      </div>
+    </div>
+
+    <div class="stats-box">
+      <div class="stat-col">
+        <span class="stat-num" id="activeTasksCount">0</span>
+        <span class="stat-lbl">Active Downloads</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat-col">
+        <span class="stat-num" id="currentThroughput">0 MB/s</span>
+        <span class="stat-lbl">Total Speed</span>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <span>Auto-intercept downloads</span>
+      <label class="switch">
+        <input type="checkbox" id="toggleIntercept" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <button class="btn-dashboard" id="btnOpenDashboard">
+      🚀 Open IDMM Dashboard
+    </button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,3 +1,12 @@
 tmp
 scripts
 PLAN.md
+*~
+*.bak
+
+# Telegram credentials and session states
+*config.telegram.yaml
+!*config.telegram.yaml.example
+*session.telegram.json*
+*state.telegram.json*
+*.session*
