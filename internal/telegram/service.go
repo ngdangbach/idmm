@@ -55,6 +55,11 @@ func NewService(cfg *Config, state *DownloadState) *Service {
 	opts := telegram.Options{
 		SessionStorage: sessionStorage,
 		UpdateHandler:  s.dispatcher,
+		DialTimeout:    15 * time.Second,
+	}
+
+	if envOpts, err := telegram.OptionsFromEnvironment(opts); err == nil {
+		opts = envOpts
 	}
 
 	s.client = telegram.NewClient(cfg.Telegram.APIID, cfg.Telegram.APIHash, opts)
@@ -73,8 +78,9 @@ func NewService(cfg *Config, state *DownloadState) *Service {
 
 // Start khởi động service Telegram và lắng nghe
 func (s *Service) Start(ctx context.Context) error {
+	fmt.Println("🚀 [Telegram] Đang kết nối tới máy chủ Telegram MTProto...")
 	return s.client.Run(ctx, func(ctx context.Context) error {
-		fmt.Println("🚀 [Telegram] Đang kết nối tới máy chủ MTProto...")
+		fmt.Println("✅ [Telegram] Đã kết nối tới MTProto.")
 
 		// 1. Xác thực tài khoản
 		status, err := s.client.Auth().Status(ctx)
@@ -466,7 +472,9 @@ func (s *Service) syncHistory(ctx context.Context) {
 
 // ListDialogs liệt kê tất cả các nhóm / kênh mà tài khoản đã tham gia
 func (s *Service) ListDialogs(ctx context.Context) error {
+	fmt.Println("🚀 [Telegram] Đang kết nối tới máy chủ Telegram MTProto...")
 	return s.client.Run(ctx, func(ctx context.Context) error {
+		fmt.Println("✅ [Telegram] Đã kết nối tới MTProto.")
 		status, err := s.client.Auth().Status(ctx)
 		if err != nil || !status.Authorized {
 			return fmt.Errorf("tài khoản chưa được xác thực, vui lòng chạy lệnh bình thường để đăng nhập trước")
