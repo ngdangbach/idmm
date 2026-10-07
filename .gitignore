@@ -12,3 +12,8 @@ PLAN.md
 *session.telegram.json*
 *state.telegram.json*
 *.session*
+
+# Torrent downloads and cache
+downloads/
+**/downloads/
+*.bolt.db

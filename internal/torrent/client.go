@@ -20,6 +20,7 @@ type ClientConfig struct {
 	DisableUpload   bool
 	DisableDHT      bool
 	DisableTrackers bool
+	Seed            bool
 }
 
 // DefaultClientConfig returns standard settings for IDMM.
@@ -33,6 +34,7 @@ func DefaultClientConfig(dataDir string) ClientConfig {
 		DisableUpload:   false,
 		DisableDHT:      false,
 		DisableTrackers: false,
+		Seed:            true,
 	}
 }
 
@@ -56,9 +58,9 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	tcfg.NoUpload = cfg.DisableUpload
 	tcfg.NoDHT = cfg.DisableDHT
 	tcfg.DisableTrackers = cfg.DisableTrackers
-	if cfg.ListenPort > 0 {
-		tcfg.ListenPort = cfg.ListenPort
-	}
+	tcfg.DisableIPv6 = true
+	tcfg.ListenPort = cfg.ListenPort
+	tcfg.Seed = cfg.Seed
 
 	tc, err := torrent.NewClient(tcfg)
 	if err != nil {
@@ -207,14 +209,27 @@ func (c *Client) ListDownloads() []*Download {
 	return list
 }
 
+// WaitAll blocks until all active torrents have completed downloading.
+func (c *Client) WaitAll() bool {
+	if c == nil || c.inner == nil {
+		return false
+	}
+	return c.inner.WaitAll()
+}
+
 // Close gracefully terminates the torrent client and all connections.
 func (c *Client) Close() error {
+	if c == nil {
+		return nil
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.isClosed {
 		return nil
 	}
 	c.isClosed = true
-	c.inner.Close()
+	if c.inner != nil {
+		c.inner.Close()
+	}
 	return nil
 }

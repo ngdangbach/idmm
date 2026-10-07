@@ -100,6 +100,9 @@ func (d *Download) HasMetadata() bool {
 func (d *Download) Start() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	if !d.HasMetadata() {
+		return
+	}
 	d.t.DownloadAll()
 	d.status = StatusDownloading
 }
@@ -201,10 +204,13 @@ func (d *Download) Stats() DownloadStats {
 	var progress float64
 	if total > 0 {
 		progress = float64(completed) / float64(total) * 100
-		if progress >= 100.0 {
+		if progress >= 100.0 || d.t.Complete().Bool() {
 			progress = 100.0
 			d.status = StatusCompleted
 		}
+	} else if d.t.Complete().Bool() {
+		progress = 100.0
+		d.status = StatusCompleted
 	}
 
 	// Compute ETA
@@ -218,14 +224,14 @@ func (d *Download) Stats() DownloadStats {
 		} else {
 			eta = fmt.Sprintf("%dh %dm", remainingSec/3600, (remainingSec%3600)/60)
 		}
-	} else if progress >= 100.0 {
+	} else if progress >= 100.0 || d.t.Complete().Bool() {
 		eta = "Done"
 	}
 
 	status := d.status
 	if !hasInfo {
 		status = StatusFetchingMetadata
-	} else if progress >= 100.0 {
+	} else if progress >= 100.0 || d.t.Complete().Bool() {
 		status = StatusCompleted
 	}
 
@@ -261,4 +267,35 @@ func (d *Download) SavePath() string {
 // Drop stops and removes the torrent from the client.
 func (d *Download) Drop() {
 	d.t.Drop()
+}
+
+// AddClientPeer connects this torrent to another local or test Client.
+func (d *Download) AddClientPeer(other *Client) int {
+	if d == nil || d.t == nil || other == nil || other.inner == nil {
+		return 0
+	}
+	return d.t.AddClientPeer(other.inner)
+}
+
+// VerifyData forces validation of existing downloaded files against piece hashes.
+func (d *Download) VerifyData() {
+	if d != nil && d.t != nil {
+		d.t.VerifyData()
+	}
+}
+
+// IsComplete returns true if all pieces have been downloaded and verified.
+func (d *Download) IsComplete() bool {
+	if d == nil || d.t == nil {
+		return false
+	}
+	return d.t.Complete().Bool()
+}
+
+// Inner returns the underlying anacrolix Torrent object.
+func (d *Download) Inner() *torrent.Torrent {
+	if d == nil {
+		return nil
+	}
+	return d.t
 }
