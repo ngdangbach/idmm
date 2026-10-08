@@ -20,14 +20,15 @@ func main() {
 	flag.Parse()
 
 	fmt.Println("================================================================")
-	fmt.Println("🚀 IDMM - Telegram Media Auto-Downloader & Streamer")
+	telegram.Logf("🚀 IDMM - Telegram Media Auto-Downloader & Streamer\n")
 	fmt.Println("   - Phân loại thư mục: <YYYY-MM-DD>/images & <YYYY-MM-DD>/videos")
 	fmt.Println("   - Tự động vào lại nhóm khi bị kick & Tiếp tục tải (Resume)")
+	fmt.Println("   - Cơ chế Polling định kỳ kiểm tra media mới 24/7")
 	fmt.Println("================================================================")
 
 	cfg, err := telegram.LoadConfig(*configPath)
 	if err != nil {
-		fmt.Printf("❌ Lỗi cấu hình: %v\n", err)
+		telegram.Logf("❌ Lỗi cấu hình: %v\n", err)
 		pauseAndExit(1)
 	}
 
@@ -44,7 +45,7 @@ func main() {
 	stateFile := "state.telegram.json"
 	st, err := telegram.LoadState(stateFile)
 	if err != nil {
-		fmt.Printf("❌ Lỗi khởi tạo state: %v\n", err)
+		telegram.Logf("❌ Lỗi khởi tạo state: %v\n", err)
 		pauseAndExit(1)
 	}
 
@@ -55,7 +56,7 @@ func main() {
 
 	if *listFlag {
 		if err := svc.ListDialogs(ctx); err != nil {
-			fmt.Printf("❌ Lỗi: %v\n", err)
+			telegram.Logf("❌ Lỗi: %v\n", err)
 			pauseAndExit(1)
 		}
 		return
@@ -66,16 +67,16 @@ func main() {
 
 	go func() {
 		<-sigChan
-		fmt.Println("\n🛑 Nhận tín hiệu dừng. Đang lưu trạng thái và ngắt kết nối...")
+		telegram.Logf("🛑 Nhận tín hiệu dừng. Đang lưu trạng thái và ngắt kết nối...\n")
 		cancel()
 	}()
 
 	if err := svc.Start(ctx); err != nil && err != context.Canceled {
-		fmt.Printf("❌ Lỗi vận hành Telegram Downloader: %v\n", err)
+		telegram.Logf("❌ Lỗi vận hành Telegram Downloader: %v\n", err)
 		pauseAndExit(1)
 	}
 
-	fmt.Println("👋 Đã dừng tiến trình an toàn.")
+	telegram.Logf("👋 Đã dừng tiến trình an toàn.\n")
 }
 
 func pauseAndExit(code int) {

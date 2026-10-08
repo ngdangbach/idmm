@@ -32,6 +32,7 @@ type SettingsConfig struct {
 	RejoinRetryIntervalSec int    `yaml:"rejoin_retry_interval_sec"`
 	SyncHistory            bool   `yaml:"sync_history"`
 	HistoryLimit           int    `yaml:"history_limit"` // 0 = toàn bộ lịch sử từ đầu; hoặc giới hạn số lượng tin (ví dụ: 1000)
+	PollIntervalSec        int    `yaml:"poll_interval_sec"` // Thời gian kiểm tra tin nhắn mới định kỳ (mặc định: 15 giây)
 	MaxConcurrentDownloads int    `yaml:"max_concurrent_downloads"`
 }
 
@@ -52,6 +53,7 @@ func DefaultConfig() *Config {
 			RejoinRetryIntervalSec: 60,
 			SyncHistory:            true,
 			HistoryLimit:           0,
+			PollIntervalSec:        15,
 			MaxConcurrentDownloads: 3,
 		},
 	}
@@ -92,7 +94,7 @@ func ResolveConfigPath(filePath string) string {
 func LoadConfig(filePath string) (*Config, error) {
 	resolvedPath := ResolveConfigPath(filePath)
 	absConfigPath, _ := filepath.Abs(resolvedPath)
-	fmt.Printf("📄 [Config] Đang nạp cấu hình từ: %s\n", absConfigPath)
+	Logf("📄 [Config] Đang nạp cấu hình từ: %s\n", absConfigPath)
 
 	cfg := DefaultConfig()
 
@@ -108,6 +110,10 @@ func LoadConfig(filePath string) (*Config, error) {
 
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("không thể parse YAML: %w", err)
+	}
+
+	if cfg.Settings.PollIntervalSec <= 0 {
+		cfg.Settings.PollIntervalSec = 15
 	}
 
 	if cfg.Telegram.APIID == 0 || cfg.Telegram.APIHash == "" {
@@ -129,7 +135,7 @@ func LoadConfig(filePath string) (*Config, error) {
 			}
 		}
 	}
-	fmt.Printf("🔑 [Config] File phiên đăng nhập (Session): %s\n", cfg.Telegram.SessionFile)
+	Logf("🔑 [Config] File phiên đăng nhập (Session): %s\n", cfg.Telegram.SessionFile)
 
 	return cfg, nil
 }

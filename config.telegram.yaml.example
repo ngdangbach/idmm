@@ -21,5 +21,9 @@ settings:
   rejoin_retry_interval_sec: 60
   # Quét và tải bù lịch sử tin nhắn từ lần chạy trước
   sync_history: true
+  # Giới hạn số lượng tin nhắn lịch sử cần quét (0 = toàn bộ từ đầu; ví dụ: 1000 tin gần nhất)
+  history_limit: 0
+  # Khoảng thời gian (giây) tự động quét tin nhắn media mới liên tục 24/7 (mặc định: 15 giây)
+  poll_interval_sec: 15
   # Tải song song tối đa bao nhiêu file cùng lúc
   max_concurrent_downloads: 3

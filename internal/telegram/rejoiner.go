@@ -150,10 +150,10 @@ func (r *RejoinManager) RejoinLoop(ctx context.Context, onRejoined func()) {
 		default:
 		}
 
-		fmt.Printf("🔄 [Auto-Rejoin] Đang thử kết nối lại vào nhóm...\n")
+		Logf("🔄 [Auto-Rejoin] Đang thử kết nối lại vào nhóm...\n")
 		err := r.TryRejoin(ctx)
 		if err == nil {
-			fmt.Printf("🎉 [Auto-Rejoin] Đã tham gia lại nhóm thành công!\n")
+			Logf("🎉 [Auto-Rejoin] Đã tham gia lại nhóm thành công!\n")
 			if onRejoined != nil {
 				onRejoined()
 			}
@@ -162,15 +162,15 @@ func (r *RejoinManager) RejoinLoop(ctx context.Context, onRejoined func()) {
 
 		// Kiểm tra nếu Telegram bắt chờ FloodWait
 		if waitSec, ok := tgerr.AsFloodWait(err); ok {
-			fmt.Printf("⏳ [Auto-Rejoin] Telegram FloodWait: Cần chờ %d giây trước khi thử lại...\n", waitSec)
+			Logf("⏳ [Auto-Rejoin] Telegram FloodWait: Cần chờ %d giây trước khi thử lại...\n", waitSec)
 			time.Sleep(time.Duration(waitSec+2) * time.Second)
 			continue
 		}
 
 		if tgerr.Is(err, "USER_BANNED_IN_CHANNEL") {
-			fmt.Printf("⚠️ [Auto-Rejoin] Tài khoản đang bị Admin cấm (Banned). Sẽ thử lại sau %v...\n", delay)
+			Logf("⚠️ [Auto-Rejoin] Tài khoản đang bị Admin cấm (Banned). Sẽ thử lại sau %v...\n", delay)
 		} else {
-			fmt.Printf("❌ [Auto-Rejoin] Lỗi tham gia nhóm (%v). Sẽ thử lại sau %v...\n", err, delay)
+			Logf("❌ [Auto-Rejoin] Lỗi tham gia nhóm (%v). Sẽ thử lại sau %v...\n", err, delay)
 		}
 
 		time.Sleep(delay)

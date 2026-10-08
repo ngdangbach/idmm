@@ -12,3 +12,9 @@ PLAN.md
 *session.telegram.json*
 *state.telegram.json*
 *.session*
+
+# Build and runtime outputs
+IDMM-*/
+downloads/
+**/downloads/
+*.exe

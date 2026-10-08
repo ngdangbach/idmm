@@ -78,9 +78,9 @@ func NewService(cfg *Config, state *DownloadState) *Service {
 
 // Start khởi động service Telegram và lắng nghe
 func (s *Service) Start(ctx context.Context) error {
-	fmt.Println("🚀 [Telegram] Đang kết nối tới máy chủ Telegram MTProto...")
+	Logf("🚀 [Telegram] Đang kết nối tới máy chủ Telegram MTProto...\n")
 	return s.client.Run(ctx, func(ctx context.Context) error {
-		fmt.Println("✅ [Telegram] Đã kết nối tới MTProto.")
+		Logf("✅ [Telegram] Đã kết nối tới MTProto.\n")
 
 		// 1. Xác thực tài khoản
 		status, err := s.client.Auth().Status(ctx)
@@ -89,7 +89,7 @@ func (s *Service) Start(ctx context.Context) error {
 		}
 
 		if !status.Authorized {
-			fmt.Println("🔑 [Telegram] Chưa đăng nhập. Bắt đầu luồng xác thực terminal...")
+			Logf("🔑 [Telegram] Chưa đăng nhập. Bắt đầu luồng xác thực terminal...\n")
 			flow := auth.NewFlow(
 				NewTerminalAuth(s.cfg.Telegram.Phone),
 				auth.SendCodeOptions{},
@@ -97,23 +97,23 @@ func (s *Service) Start(ctx context.Context) error {
 			if err := s.client.Auth().IfNecessary(ctx, flow); err != nil {
 				return fmt.Errorf("đăng nhập thất bại: %w", err)
 			}
-			fmt.Println("✅ [Telegram] Đăng nhập thành công và đã lưu phiên làm việc (Session)!")
+			Logf("✅ [Telegram] Đăng nhập thành công và đã lưu phiên làm việc (Session)!\n")
 		} else {
-			fmt.Println("✅ [Telegram] Đã phục hồi phiên làm việc từ file session.")
+			Logf("✅ [Telegram] Đã phục hồi phiên làm việc từ file session.\n")
 		}
 
 		// 2. Định danh Target Peer
 		if err := s.resolveTarget(ctx); err != nil {
 			if s.cfg.Settings.AutoRejoin {
-				fmt.Printf("⚠️ [Telegram] Chưa vào được nhóm (%v). Bắt đầu auto-join...\n", err)
+				Logf("⚠️ [Telegram] Chưa vào được nhóm (%v). Bắt đầu auto-join...\n", err)
 				if err := s.rejoiner.TryRejoin(ctx); err != nil {
-					fmt.Printf("❌ [Telegram] Lỗi auto-join lần đầu: %v. Sẽ tiếp tục thử lại...\n", err)
+					Logf("❌ [Telegram] Lỗi auto-join lần đầu: %v. Sẽ tiếp tục thử lại...\n", err)
 				} else {
-					fmt.Println("🎉 [Telegram] Đã join vào nhóm thành công!")
+					Logf("🎉 [Telegram] Đã join vào nhóm thành công!\n")
 					_ = s.resolveTarget(ctx)
 				}
 			} else {
-				fmt.Printf("ℹ️ [Telegram] Chế độ xem khách (AutoRejoin: false). Không thực hiện join nhóm: %v\n", err)
+				Logf("ℹ️ [Telegram] Chế độ xem khách (AutoRejoin: false). Không thực hiện join nhóm: %v\n", err)
 			}
 		}
 
@@ -125,8 +125,11 @@ func (s *Service) Start(ctx context.Context) error {
 			}()
 		}
 
-		fmt.Println("📡 [Telegram] Đang hoạt động và lắng nghe media thời gian thực...")
-		fmt.Printf("📁 [Telegram] Thư mục lưu trữ: %s/<YYYY-MM-DD>/[images|videos]/\n", s.cfg.Settings.DownloadDir)
+		// 4. Bật vòng lặp Polling định kỳ để luôn tự động quét & tải media mới 24/7
+		go s.startPollingLoop(ctx)
+
+		Logf("📡 [Telegram] Đang hoạt động và lắng nghe media thời gian thực...\n")
+		Logf("📁 [Telegram] Thư mục lưu trữ: %s/<YYYY-MM-DD>/[images|videos]/\n", s.cfg.Settings.DownloadDir)
 
 		<-ctx.Done()
 		return ctx.Err()
@@ -173,7 +176,7 @@ func (s *Service) resolveTarget(ctx context.Context) error {
 						AccessHash: ch.AccessHash,
 					}
 					s.state.UpdateTarget(ch.ID, ch.Title)
-					fmt.Printf("🎯 [Telegram] Đã tìm thấy nhóm đã tham gia: '%s' (ID: -100%d)\n", ch.Title, ch.ID)
+					Logf("🎯 [Telegram] Đã tìm thấy nhóm đã tham gia: '%s' (ID: -100%d)\n", ch.Title, ch.ID)
 					return nil
 				}
 			case *tg.Chat:
@@ -184,7 +187,7 @@ func (s *Service) resolveTarget(ctx context.Context) error {
 						ChatID: ch.ID,
 					}
 					s.state.UpdateTarget(ch.ID, ch.Title)
-					fmt.Printf("🎯 [Telegram] Đã tìm thấy nhóm đã tham gia: '%s' (ID: -%d)\n", ch.Title, ch.ID)
+					Logf("🎯 [Telegram] Đã tìm thấy nhóm đã tham gia: '%s' (ID: -%d)\n", ch.Title, ch.ID)
 					return nil
 				}
 			}
@@ -208,7 +211,7 @@ func (s *Service) resolveTarget(ctx context.Context) error {
 						AccessHash: ch.AccessHash,
 					}
 					s.state.UpdateTarget(ch.ID, ch.Title)
-					fmt.Printf("🎯 [Telegram] Đã định vị nhóm mục tiêu từ Link mời: '%s' (ID: %d)\n", ch.Title, ch.ID)
+					Logf("🎯 [Telegram] Đã định vị nhóm mục tiêu từ Link mời: '%s' (ID: %d)\n", ch.Title, ch.ID)
 					return nil
 				case *tg.Chat:
 					s.targetChannelID = ch.ID
@@ -217,11 +220,11 @@ func (s *Service) resolveTarget(ctx context.Context) error {
 						ChatID: ch.ID,
 					}
 					s.state.UpdateTarget(ch.ID, ch.Title)
-					fmt.Printf("🎯 [Telegram] Đã định vị nhóm mục tiêu từ Link mời: '%s' (ID: %d)\n", ch.Title, ch.ID)
+					Logf("🎯 [Telegram] Đã định vị nhóm mục tiêu từ Link mời: '%s' (ID: %d)\n", ch.Title, ch.ID)
 					return nil
 				}
 			case *tg.ChatInvite:
-				fmt.Printf("ℹ️ [Telegram] Phát hiện nhóm '%s' qua link mời. Đang tiến hành tham gia...\n", res.Title)
+				Logf("ℹ️ [Telegram] Phát hiện nhóm '%s' qua link mời. Đang tiến hành tham gia...\n", res.Title)
 				_, importErr := s.api.MessagesImportChatInvite(ctx, hash)
 				if importErr != nil && !tgerr.Is(importErr, "USER_ALREADY_PARTICIPANT") {
 					return fmt.Errorf("không thể tham gia nhóm từ link mời: %w", importErr)
@@ -236,7 +239,7 @@ func (s *Service) resolveTarget(ctx context.Context) error {
 							s.targetTitle = ch.Title
 							s.targetInputPeer = &tg.InputPeerChannel{ChannelID: ch.ID, AccessHash: ch.AccessHash}
 							s.state.UpdateTarget(ch.ID, ch.Title)
-							fmt.Printf("🎯 [Telegram] Đã tham gia và định vị nhóm: '%s' (ID: %d)\n", ch.Title, ch.ID)
+							Logf("🎯 [Telegram] Đã tham gia và định vị nhóm: '%s' (ID: %d)\n", ch.Title, ch.ID)
 							return nil
 						}
 					}
@@ -263,7 +266,7 @@ func (s *Service) resolveTarget(ctx context.Context) error {
 				AccessHash: ch.AccessHash,
 			}
 			s.state.UpdateTarget(ch.ID, ch.Title)
-			fmt.Printf("🎯 [Telegram] Đã định vị nhóm mục tiêu: '%s' (ID: %d)\n", ch.Title, ch.ID)
+			Logf("🎯 [Telegram] Đã định vị nhóm mục tiêu: '%s' (ID: %d)\n", ch.Title, ch.ID)
 			return nil
 		}
 	}
@@ -330,11 +333,11 @@ func (s *Service) handleMessage(ctx context.Context, msg *tg.Message) {
 
 	date := time.Unix(int64(msg.Date), 0)
 	dateStr := date.Format("2006-01-02")
-	fmt.Printf("📥 [Telegram] Phát hiện %s mới: %s (ID: %d) -> Thư mục: %s/%s/\n", mType, filename, msg.ID, dateStr, mType)
+	Logf("📥 [Telegram] Phát hiện %s mới: %s (ID: %d) -> Thư mục: %s/%s/\n", mType, filename, msg.ID, dateStr, mType)
 
 	filePath, err := s.downloader.DownloadMessageMedia(ctx, msg, nil)
 	if err != nil {
-		fmt.Printf("❌ [Telegram] Tải thất bại ID %d: %v\n", msg.ID, err)
+		Logf("❌ [Telegram] Tải thất bại ID %d: %v\n", msg.ID, err)
 		if tgerr.Is(err, "CHANNEL_PRIVATE") || tgerr.Is(err, "CHAT_ADMIN_REQUIRED") {
 			s.triggerKickRecovery(ctx)
 		}
@@ -342,12 +345,12 @@ func (s *Service) handleMessage(ctx context.Context, msg *tg.Message) {
 	}
 
 	s.state.MarkDownloaded(msg.ID, filePath)
-	fmt.Printf("✅ [Telegram] Đã lưu thành công: %s\n", filePath)
+	Logf("✅ [Telegram] Đã lưu thành công: %s\n", filePath)
 }
 
 func (s *Service) triggerKickRecovery(ctx context.Context) {
 	if !s.cfg.Settings.AutoRejoin {
-		fmt.Println("ℹ️ [Telegram] Tài khoản bị kick nhưng AutoRejoin đang tắt (Chế độ xem khách). Bỏ qua vào lại nhóm.")
+		Logf("ℹ️ [Telegram] Tài khoản bị kick nhưng AutoRejoin đang tắt (Chế độ xem khách). Bỏ qua vào lại nhóm.\n")
 		return
 	}
 
@@ -359,7 +362,7 @@ func (s *Service) triggerKickRecovery(ctx context.Context) {
 	s.isKicked = true
 	s.mu.Unlock()
 
-	fmt.Println("⚠️ [Telegram] Cảnh báo: Tài khoản đã bị Kick hoặc mất quyền truy cập nhóm!")
+	Logf("⚠️ [Telegram] Cảnh báo: Tài khoản đã bị Kick hoặc mất quyền truy cập nhóm!\n")
 	fmt.Println("🔄 [Telegram] Kích hoạt tiến trình Auto-Rejoin...")
 
 	go s.rejoiner.RejoinLoop(ctx, func() {
@@ -382,7 +385,7 @@ func (s *Service) syncHistory(ctx context.Context) {
 	if s.cfg.Settings.HistoryLimit > 0 {
 		limitDesc = fmt.Sprintf("tối đa %d tin nhắn", s.cfg.Settings.HistoryLimit)
 	}
-	fmt.Printf("🔄 [Telegram Sync] Bắt đầu quét lịch sử tin nhắn (%s)...\n", limitDesc)
+	Logf("🔄 [Telegram Sync] Bắt đầu quét lịch sử tin nhắn (%s)...\n", limitDesc)
 
 	offsetID := 0
 	totalScanned := 0
@@ -417,11 +420,11 @@ func (s *Service) syncHistory(ctx context.Context) {
 		})
 		if err != nil {
 			if waitSec, ok := tgerr.AsFloodWait(err); ok {
-				fmt.Printf("⏳ [Telegram Sync] FloodWait: Cần chờ %d giây trước khi tiếp tục...\n", waitSec)
+				Logf("⏳ [Telegram Sync] FloodWait: Cần chờ %d giây trước khi tiếp tục...\n", waitSec)
 				time.Sleep(time.Duration(waitSec+2) * time.Second)
 				continue
 			}
-			fmt.Printf("⚠️ [Telegram Sync] Lỗi lấy lịch sử: %v\n", err)
+			Logf("⚠️ [Telegram Sync] Lỗi lấy lịch sử: %v\n", err)
 			break
 		}
 
@@ -454,7 +457,7 @@ func (s *Service) syncHistory(ctx context.Context) {
 			}
 		}
 
-		fmt.Printf("📊 [Telegram Sync] Tiến trình: đã duyệt %d tin nhắn (tải về %d media mới)... (offset ID: %d)\n",
+		Logf("📊 [Telegram Sync] Tiến trình: đã duyệt %d tin nhắn (tải về %d media mới)... (offset ID: %d)\n",
 			totalScanned, totalDownloaded, oldestID)
 
 		if oldestID <= 1 || oldestID == offsetID {
@@ -466,8 +469,87 @@ func (s *Service) syncHistory(ctx context.Context) {
 		time.Sleep(300 * time.Millisecond)
 	}
 
-	fmt.Printf("✅ [Telegram Sync] Quét lịch sử hoàn tất! Đã duyệt %d tin nhắn, tải về %d media.\n",
+	Logf("✅ [Telegram Sync] Quét lịch sử hoàn tất! Đã duyệt %d tin nhắn, tải về %d media.\n",
 		totalScanned, totalDownloaded)
+}
+
+// startPollingLoop quét định kỳ để bắt kịp mọi tin nhắn media mới 24/7
+func (s *Service) startPollingLoop(ctx context.Context) {
+	interval := s.cfg.Settings.PollIntervalSec
+	if interval <= 0 {
+		interval = 15
+	}
+	ticker := time.NewTicker(time.Duration(interval) * time.Second)
+	defer ticker.Stop()
+
+	Logf("🔄 [Telegram Poller] Đã kích hoạt quét tin mới định kỳ (mỗi %d giây)...\n", interval)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.mu.Lock()
+			peer := s.targetInputPeer
+			kicked := s.isKicked
+			s.mu.Unlock()
+
+			if peer == nil || kicked {
+				continue
+			}
+			s.pollNewMessages(ctx)
+		}
+	}
+}
+
+// pollNewMessages lấy các tin nhắn mới nhất và tải ngay nếu có media
+func (s *Service) pollNewMessages(ctx context.Context) {
+	s.mu.Lock()
+	peer := s.targetInputPeer
+	s.mu.Unlock()
+	if peer == nil {
+		return
+	}
+
+	history, err := s.api.MessagesGetHistory(ctx, &tg.MessagesGetHistoryRequest{
+		Peer:       peer,
+		OffsetID:   0,
+		OffsetDate: 0,
+		AddOffset:  0,
+		Limit:      50,
+		MaxID:      0,
+		MinID:      0,
+	})
+	if err != nil {
+		if waitSec, ok := tgerr.AsFloodWait(err); ok {
+			Logf("⏳ [Telegram Poller] FloodWait: Cần chờ %d giây...\n", waitSec)
+			time.Sleep(time.Duration(waitSec+1) * time.Second)
+			return
+		}
+		if tgerr.Is(err, "CHANNEL_PRIVATE") || tgerr.Is(err, "CHAT_ADMIN_REQUIRED") {
+			s.triggerKickRecovery(ctx)
+		}
+		return
+	}
+
+	var messages []tg.MessageClass
+	switch h := history.(type) {
+	case *tg.MessagesMessages:
+		messages = h.Messages
+	case *tg.MessagesMessagesSlice:
+		messages = h.Messages
+	case *tg.MessagesChannelMessages:
+		messages = h.Messages
+	}
+
+	// Duyệt từ cũ đến mới để tải tuần tự
+	for i := len(messages) - 1; i >= 0; i-- {
+		if msg, ok := messages[i].(*tg.Message); ok {
+			if !s.state.IsDownloaded(msg.ID) && msg.Media != nil {
+				s.handleMessage(ctx, msg)
+			}
+		}
+	}
 }
 
 // ListDialogs liệt kê tất cả các nhóm / kênh mà tài khoản đã tham gia
