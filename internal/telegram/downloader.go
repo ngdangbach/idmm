@@ -89,16 +89,43 @@ func (m *MediaDownloader) ExtractMediaInfo(msg *tg.Message) MediaInfo {
 		// Xác định tên file gốc nếu có trong DocumentAttributeFilename
 		origName := ""
 		isVideo := false
+		isSticker := false
 		for _, attr := range doc.Attributes {
 			switch a := attr.(type) {
 			case *tg.DocumentAttributeFilename:
 				origName = a.FileName
 			case *tg.DocumentAttributeVideo:
 				isVideo = true
+			case *tg.DocumentAttributeSticker, *tg.DocumentAttributeCustomEmoji:
+				isSticker = true
+			}
+		}
+
+		// Nếu là sticker hoặc custom emoji của Telegram, bỏ qua không tải
+		if isSticker {
+			return MediaInfo{
+				Type:         MediaTypeOther,
+				Filename:     fmt.Sprintf("sticker_%d", msg.ID),
+				OrigName:     origName,
+				ExpectedSize: expectedSize,
+				IsMedia:      false,
 			}
 		}
 
 		mime := strings.ToLower(doc.MimeType)
+		fileExt := strings.ToLower(filepath.Ext(origName))
+
+		// Bỏ qua file .webm (sticker video Telegram)
+		if fileExt == ".webm" || mime == "video/webm" {
+			return MediaInfo{
+				Type:         MediaTypeOther,
+				Filename:     fmt.Sprintf("sticker_%d.webm", msg.ID),
+				OrigName:     origName,
+				ExpectedSize: expectedSize,
+				IsMedia:      false,
+			}
+		}
+
 		if strings.HasPrefix(mime, "video/") || isVideo {
 			ext := ".mp4"
 			if origName != "" {

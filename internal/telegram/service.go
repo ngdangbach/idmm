@@ -329,6 +329,7 @@ func (s *Service) handleMessage(ctx context.Context, msg *tg.Message) {
 
 	info := s.downloader.ExtractMediaInfo(msg)
 	if !info.IsMedia {
+		s.state.MarkDownloaded(msg.ID, "[skipped]")
 		return
 	}
 
