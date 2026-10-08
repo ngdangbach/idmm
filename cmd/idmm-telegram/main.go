@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"idmm/internal/telegram"
@@ -43,11 +44,23 @@ func main() {
 	}
 
 	stateFile := "state.telegram.json"
+	if cfg.Settings.DownloadDir != "" && cfg.Settings.DownloadDir != "." {
+		_ = os.MkdirAll(cfg.Settings.DownloadDir, 0755)
+		dirState := filepath.Join(cfg.Settings.DownloadDir, ".state.telegram.json")
+		if _, err := os.Stat(dirState); err == nil {
+			stateFile = dirState
+		} else if _, err := os.Stat("state.telegram.json"); err == nil {
+			stateFile = "state.telegram.json"
+		} else {
+			stateFile = dirState
+		}
+	}
 	st, err := telegram.LoadState(stateFile)
 	if err != nil {
 		telegram.Logf("❌ Lỗi khởi tạo state: %v\n", err)
 		pauseAndExit(1)
 	}
+	telegram.Logf("💾 [State] Sử dụng file trạng thái: %s\n", stateFile)
 
 	svc := telegram.NewService(cfg, st)
 

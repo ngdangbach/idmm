@@ -29,10 +29,19 @@ func NewMediaDownloader(api *tg.Client, organizer *MediaOrganizer) *MediaDownloa
 	}
 }
 
-// ExtractMediaInfo phân tích tin nhắn để xác định loại media, tên file và thông tin tải
-func (m *MediaDownloader) ExtractMediaInfo(msg *tg.Message) (mType MediaType, filename string, isMedia bool) {
+// MediaInfo chứa thông tin chi tiết về file media phân tích từ tin nhắn Telegram
+type MediaInfo struct {
+	Type         MediaType
+	Filename     string
+	OrigName     string
+	ExpectedSize int64
+	IsMedia      bool
+}
+
+// ExtractMediaInfo phân tích tin nhắn để xác định loại media, tên file, tên gốc và dung lượng dự kiến
+func (m *MediaDownloader) ExtractMediaInfo(msg *tg.Message) MediaInfo {
 	if msg == nil || msg.Media == nil {
-		return "", "", false
+		return MediaInfo{}
 	}
 
 	date := time.Unix(int64(msg.Date), 0)
@@ -40,15 +49,42 @@ func (m *MediaDownloader) ExtractMediaInfo(msg *tg.Message) (mType MediaType, fi
 
 	switch media := msg.Media.(type) {
 	case *tg.MessageMediaPhoto:
+		photo, ok := media.Photo.(*tg.Photo)
+		var expectedSize int64
+		if ok {
+			for _, s := range photo.Sizes {
+				switch sz := s.(type) {
+				case *tg.PhotoSize:
+					if int64(sz.Size) > expectedSize {
+						expectedSize = int64(sz.Size)
+					}
+				case *tg.PhotoSizeProgressive:
+					if len(sz.Sizes) > 0 {
+						last := int64(sz.Sizes[len(sz.Sizes)-1])
+						if last > expectedSize {
+							expectedSize = last
+						}
+					}
+				}
+			}
+		}
 		// Ảnh từ Telegram
-		filename = fmt.Sprintf("photo_%d_%s.jpg", msg.ID, datePrefix)
-		return MediaTypeImage, filename, true
+		filename := fmt.Sprintf("photo_%d_%s.jpg", msg.ID, datePrefix)
+		return MediaInfo{
+			Type:         MediaTypeImage,
+			Filename:     filename,
+			OrigName:     "",
+			ExpectedSize: expectedSize,
+			IsMedia:      true,
+		}
 
 	case *tg.MessageMediaDocument:
 		doc, ok := media.Document.(*tg.Document)
 		if !ok {
-			return "", "", false
+			return MediaInfo{}
 		}
+
+		expectedSize := doc.Size
 
 		// Xác định tên file gốc nếu có trong DocumentAttributeFilename
 		origName := ""
@@ -64,7 +100,6 @@ func (m *MediaDownloader) ExtractMediaInfo(msg *tg.Message) (mType MediaType, fi
 
 		mime := strings.ToLower(doc.MimeType)
 		if strings.HasPrefix(mime, "video/") || isVideo {
-			mType = MediaTypeVideo
 			ext := ".mp4"
 			if origName != "" {
 				ext = filepath.Ext(origName)
@@ -72,45 +107,66 @@ func (m *MediaDownloader) ExtractMediaInfo(msg *tg.Message) (mType MediaType, fi
 			if ext == "" {
 				ext = ".mp4"
 			}
+			var filename string
 			if origName != "" {
 				filename = fmt.Sprintf("%d_%s", msg.ID, origName)
 			} else {
 				filename = fmt.Sprintf("video_%d_%s%s", msg.ID, datePrefix, ext)
 			}
-			return mType, filename, true
+			return MediaInfo{
+				Type:         MediaTypeVideo,
+				Filename:     filename,
+				OrigName:     origName,
+				ExpectedSize: expectedSize,
+				IsMedia:      true,
+			}
 		} else if strings.HasPrefix(mime, "image/") {
-			mType = MediaTypeImage
 			ext := ".jpg"
 			if origName != "" {
 				ext = filepath.Ext(origName)
 			}
+			var filename string
 			if origName != "" {
 				filename = fmt.Sprintf("%d_%s", msg.ID, origName)
 			} else {
 				filename = fmt.Sprintf("image_%d_%s%s", msg.ID, datePrefix, ext)
 			}
-			return mType, filename, true
+			return MediaInfo{
+				Type:         MediaTypeImage,
+				Filename:     filename,
+				OrigName:     origName,
+				ExpectedSize: expectedSize,
+				IsMedia:      true,
+			}
 		}
 
 		// Tài liệu khác (nếu cần có thể lưu hoặc bỏ qua)
-		return MediaTypeOther, fmt.Sprintf("doc_%d_%s", msg.ID, origName), false
+		return MediaInfo{
+			Type:         MediaTypeOther,
+			Filename:     fmt.Sprintf("doc_%d_%s", msg.ID, origName),
+			OrigName:     origName,
+			ExpectedSize: expectedSize,
+			IsMedia:      false,
+		}
 	}
 
-	return "", "", false
+	return MediaInfo{}
 }
 
 // DownloadMessageMedia thực hiện tải media và lưu vào đúng thư mục images/ hoặc videos/
 func (m *MediaDownloader) DownloadMessageMedia(ctx context.Context, msg *tg.Message, progress ProgressCallback) (string, error) {
-	mType, filename, isMedia := m.ExtractMediaInfo(msg)
-	if !isMedia {
+	info := m.ExtractMediaInfo(msg)
+	if !info.IsMedia {
 		return "", fmt.Errorf("tin nhắn không chứa ảnh hoặc video hợp lệ")
 	}
 
 	msgDate := time.Unix(int64(msg.Date), 0)
-	destPath, err := m.organizer.GetDestinationPath(msgDate, mType, filename)
+	destPath, err := m.organizer.GetDestinationPath(msgDate, info.Type, info.Filename)
 	if err != nil {
 		return "", err
 	}
+
+	tmpPath := destPath + ".tmp"
 
 	switch media := msg.Media.(type) {
 	case *tg.MessageMediaPhoto:
@@ -138,10 +194,15 @@ func (m *MediaDownloader) DownloadMessageMedia(ctx context.Context, msg *tg.Mess
 		}
 
 		builder := m.dl.Download(m.api, location)
-		_, err = builder.ToPath(ctx, destPath)
+		_, err = builder.ToPath(ctx, tmpPath)
 		if err != nil {
-			_ = os.Remove(destPath)
+			_ = os.Remove(tmpPath)
 			return "", fmt.Errorf("lỗi tải ảnh: %w", err)
+		}
+
+		_ = os.Remove(destPath)
+		if err := os.Rename(tmpPath, destPath); err != nil {
+			return "", fmt.Errorf("lỗi lưu ảnh từ file tạm: %w", err)
 		}
 
 	case *tg.MessageMediaDocument:
@@ -152,10 +213,15 @@ func (m *MediaDownloader) DownloadMessageMedia(ctx context.Context, msg *tg.Mess
 
 		location := doc.AsInputDocumentFileLocation("")
 		builder := m.dl.Download(m.api, location)
-		_, err = builder.ToPath(ctx, destPath)
+		_, err = builder.ToPath(ctx, tmpPath)
 		if err != nil {
-			_ = os.Remove(destPath)
+			_ = os.Remove(tmpPath)
 			return "", fmt.Errorf("lỗi tải video/document: %w", err)
+		}
+
+		_ = os.Remove(destPath)
+		if err := os.Rename(tmpPath, destPath); err != nil {
+			return "", fmt.Errorf("lỗi lưu video từ file tạm: %w", err)
 		}
 
 	default:

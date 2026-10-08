@@ -87,3 +87,65 @@ func TestExtractInviteHash(t *testing.T) {
 		}
 	}
 }
+
+func TestFindExistingMediaFile(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "idmm_dedup_test_*")
+	if err != nil {
+		t.Fatalf("Không thể tạo thư mục tạm: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	organizer := NewMediaOrganizer(tempDir)
+	testDate := time.Date(2026, 10, 8, 9, 30, 0, 0, time.UTC)
+
+	// Tạo thư mục video
+	videoDir := filepath.Join(tempDir, "2026-10-08", "videos")
+	if err := os.MkdirAll(videoDir, 0755); err != nil {
+		t.Fatalf("Lỗi tạo thư mục: %v", err)
+	}
+
+	// Trường hợp 1: File gốc rose.mp4 (size 200 bytes) đã có trên đĩa
+	rosePath := filepath.Join(videoDir, "rose.mp4")
+	dummyData := make([]byte, 200)
+	if err := os.WriteFile(rosePath, dummyData, 0644); err != nil {
+		t.Fatalf("Lỗi tạo file mẫu: %v", err)
+	}
+
+	// Thử tìm với filename "101_rose.mp4", origName "rose.mp4", expectedSize = 200
+	foundPath, found := organizer.FindExistingMediaFile(testDate, MediaTypeVideo, "101_rose.mp4", "rose.mp4", 200)
+	if !found {
+		t.Fatalf("Kỳ vọng tìm thấy file rose.mp4 đã có sẵn trên đĩa")
+	}
+	if foundPath != rosePath {
+		t.Errorf("Đường dẫn tìm thấy %s không khớp %s", foundPath, rosePath)
+	}
+
+	// Trường hợp 2: Sai kích thước (expectedSize = 500 nhưng file chỉ có 200) -> Không coi là file đã hoàn tất
+	_, foundMismatch := organizer.FindExistingMediaFile(testDate, MediaTypeVideo, "101_rose.mp4", "rose.mp4", 500)
+	if foundMismatch {
+		t.Errorf("Kỳ vọng KHÔNG tìm thấy khi kích thước không khớp")
+	}
+
+	// Trường hợp 3: File chuẩn 202_clip.mp4 đã có trên đĩa
+	clipPath := filepath.Join(videoDir, "202_clip.mp4")
+	if err := os.WriteFile(clipPath, dummyData, 0644); err != nil {
+		t.Fatalf("Lỗi tạo file mẫu: %v", err)
+	}
+
+	foundPath2, found2 := organizer.FindExistingMediaFile(testDate, MediaTypeVideo, "202_clip.mp4", "clip.mp4", 200)
+	if !found2 || foundPath2 != clipPath {
+		t.Errorf("Kỳ vọng tìm thấy file chuẩn 202_clip.mp4")
+	}
+}
+
+func TestFormatFileSize(t *testing.T) {
+	if got := FormatFileSize(0); got != "0 B" {
+		t.Errorf("FormatFileSize(0) = %s, kỳ vọng 0 B", got)
+	}
+	if got := FormatFileSize(1024); got != "1.0 KB" {
+		t.Errorf("FormatFileSize(1024) = %s, kỳ vọng 1.0 KB", got)
+	}
+	if got := FormatFileSize(1048576); got != "1.0 MB" {
+		t.Errorf("FormatFileSize(1048576) = %s, kỳ vọng 1.0 MB", got)
+	}
+}

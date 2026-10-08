@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -326,14 +327,26 @@ func (s *Service) handleMessage(ctx context.Context, msg *tg.Message) {
 		return
 	}
 
-	mType, filename, isMedia := s.downloader.ExtractMediaInfo(msg)
-	if !isMedia {
+	info := s.downloader.ExtractMediaInfo(msg)
+	if !info.IsMedia {
 		return
 	}
 
 	date := time.Unix(int64(msg.Date), 0)
 	dateStr := date.Format("2006-01-02")
-	Logf("📥 [Telegram] Phát hiện %s mới: %s (ID: %d) -> Thư mục: %s/%s/\n", mType, filename, msg.ID, dateStr, mType)
+
+	// 1. Kiểm tra xem file đã tồn tại trên đĩa hay chưa (hỗ trợ chuyển máy / session mới / quét lại lịch sử)
+	if existingPath, found := s.organizer.FindExistingMediaFile(date, info.Type, info.Filename, info.OrigName, info.ExpectedSize); found {
+		s.state.MarkDownloaded(msg.ID, existingPath)
+		sizeStr := FormatFileSize(info.ExpectedSize)
+		Logf("⏭️ [Telegram Skip] File đã tồn tại trên đĩa (%s, %s): %s -> Đã đồng bộ trạng thái, bỏ qua tải lại.\n",
+			info.Type, sizeStr, filepath.Base(existingPath))
+		return
+	}
+
+	sizeStr := FormatFileSize(info.ExpectedSize)
+	Logf("📥 [Telegram] Phát hiện %s mới: %s (ID: %d, %s) -> Thư mục: %s/%s/\n",
+		info.Type, info.Filename, msg.ID, sizeStr, dateStr, info.Type)
 
 	filePath, err := s.downloader.DownloadMessageMedia(ctx, msg, nil)
 	if err != nil {
